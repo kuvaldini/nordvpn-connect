@@ -15,20 +15,41 @@ Just clone the repo and create a link in your `$PATH`.
 
 ```sh
 umask u=rw
-git clone https://github.com/kuvaldini/nordvpn-connect
+git clone https://github.com/kuvaldini/nordvpn-connect /path/to/home/user/sofware/nordvpn-connect --single-branch
 chmod -R go= nordvpn-connect
 ln -s $PWD/nordvpn-connect/nordvpn-connect.sh /usr/local/bin/nordvpn-connect
+```
+
+UPDATE/UPGRADE
+--------------
+```
+git -C /path/to/home/user/sofware/nordvpn-connect pull --rebase -Xtheirs
+chmod -R go= nordvpn-connect
 ```
 
 
 USAGE
 -----
 ```
-nordvpn-connect <contry_code> [tcp|udp]
+nordvpn-connect version undefined
+Calls openvpn command to connect to selected NordVPN server.
+USAGE:
+   nordvpn-connect <COUNTRY|serverspec> [PROTOCOL]
+   nordvpn-connect --help
+COUNTRY: al ar at au ba be bg br ca ch cl cr cy cz de dk ee es fi fr ge gr hk hr hu id ie il in is it jp kr lt lu lv md mk mx my nl no nz pl pt ro rs se sg si sk th tr tw ua uk us vn za 
+SERVER: may specify any letters correponding to the begining of server address
+PROTOCOLS: tcp, udp
+OPTIONS:
+   -c|--countries List available countries
+   -s|--servers   List available servers with given serverspec, default=all
+   -h|--help      Show this help
+   -V|--version   Show version
+   -n|--dry-run   Dry run, not execute but echo openvpn command
+   -x|--trace     Trace as bash -x
+SITE: https://github.com/kuvaldini/nordvpn-connect
 ```
-Use `--help`.
 
-### credentials
+### store credentials
 It is important to have credentials Login:Password stored somewhere, 
 not to be asked every time. And moreover that should be secure.
 That is why I added a stupid encryption for credentials utilizing GnuPG.
@@ -40,6 +61,7 @@ login
 password
 ```
 After first call `nordvpn-connect` will encrypt that file.
+Password is optional, if not set openvpn will ask each time.
 
 The encryption is vulnerable because password is stored in script,
 but that is better than nothing.  
@@ -47,7 +69,17 @@ I have a future plan to encrypt assimetrically with key from user's
 GPG keychain. 
 
 
-### Get config from official site nordvpn.com
+Lifehacks
+---------
+### Connecting without sudo
+Someone could want to connect as regular user without root priveliges (i.e. no sudo):
+```
+sudo chmod 500 $(which openvpn)
+sudo setcap 'CAP_NET_ADMIN=ep' $(which openvpn)
+```
+Then `openvpn` should become able to configure tun/tap interfaces and create routes.
+
+### Get direct URLs to OpenVPN configs from official site nordvpn.com
 
     curl https://nordvpn.com/ovpn/ | 
        htmlq -a href a | grep -F .ovpn
@@ -68,12 +100,17 @@ File size is about 4MB, reduce it to 500KB
 
 
 ## ToDo 
+- stabilize connection after sleep
 - systemd config to connect at startup
 - optional killswitch by unrouting all
-- suggrest adguard-dnsserver on localhost
-- protect from server routes
-- protect from server dns
+- suggest adguard-dnsserver on localhost
+- protect from server's routes
+- protect from server's dns
 - notify desktop
+- integrate with NetworkManager
+- encrypt/decrypt with master trusted key using assimmetric algorithm
+- version
+- test for a fastest server, cache the value
 
 ```
 Firewall: enabled

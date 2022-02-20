@@ -10,21 +10,23 @@ So I desided to spend a couple of hours to write a script to connect to nordvpn.
 
 INSTALLATION
 ---------------
-This is alpha version and has no cool installation procedure.
+This is beta version and has no cool installation procedure.
 Just clone the repo and create a link in your `$PATH`.
 
 ```sh
 umask u=rw
-git clone https://github.com/kuvaldini/nordvpn-connect /path/to/home/user/sofware/nordvpn-connect --single-branch
-chmod -R go= nordvpn-connect
-ln -s $PWD/nordvpn-connect/nordvpn-connect.sh /usr/local/bin/nordvpn-connect
+git clone https://github.com/kuvaldini/nordvpn-connect /path/to/home/user/sofware/nordvpn-connect --single-branch -b master
+chmod -R go= nordvpn-connect  ## Restrict access, only user-ovener may read and run
+ln -s $PWD/nordvpn-connect/nordvpn-connect.sh /usr/local/bin/nordvpn-connect  ## root required
 ```
+Rootless link `ln -s $PWD/nordvpn-connect/nordvpn-connect.sh ~/.local/bin/`. 
+Ensure it is in the `$PATH`.
 
 UPDATE/UPGRADE
 --------------
 ```
-git -C /path/to/home/user/sofware/nordvpn-connect pull --rebase -Xtheirs
-chmod -R go= nordvpn-connect
+git -C /path/to/nordvpn-connect pull -Xtheirs --ff
+chmod -R go= /path/to/nordvpn-connect
 ```
 
 
@@ -94,6 +96,10 @@ File size is about 4MB, reduce it to 500KB
 
     jq 'map({name,domain,ip_address}) |sort_by(.domain)' <servers.json >servers.short.json
 
+Select/filter servers by country
+
+    jq <server.short.json '.[]|select(.name|contains("Ukraine"))'
+
 
 ## LINKS
 - https://community.openvpn.net/openvpn/wiki/IgnoreRedirectGateway
@@ -104,7 +110,7 @@ File size is about 4MB, reduce it to 500KB
 - systemd config to connect at startup
 - optional killswitch by unrouting all
 - suggest adguard-dnsserver on localhost
-- protect from server's routes
+- protect from server's routes https://community.openvpn.net/openvpn/wiki/IgnoreRedirectGateway
 - protect from server's dns
 - notify desktop
 - integrate with NetworkManager

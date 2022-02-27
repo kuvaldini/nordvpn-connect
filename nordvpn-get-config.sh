@@ -12,3 +12,6 @@ curl https://nordvpn.com/ovpn/ |
       else echo wget $addr
       fi
    done
+
+## You mat need to run this multiple times, because server blocks many requests, need to repeat after sometime.
+## Maybe add delays.

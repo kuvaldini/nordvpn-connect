@@ -76,11 +76,15 @@ while [[ $# > 0 ]] ;do
          ;;
          *)
             serverspec="$1"
-            h=$(v="$1" awk 'index($0, ENVIRON["v"])==1' $DIR/SERVERS.txt | shuf -n1)
-            if [[ ${h:-x} = x ]] ;then
+            # h=$(v="$1" awk 'index($0, ENVIRON["v"])==1' $DIR/SERVERS.txt | shuf -n1)
+            h="$(v="$1" awk 'index($0, ENVIRON["v"])==1' $DIR/server.ip.name.csv | shuf -n1)"
+            # h=$(jq -r <$DIR/server.short.json --arg x "$1" '.[]|select(.domain|startswith($x)).ip_address' )
+            #jq <server.short.json -c --arg x uk '.[]|select(.domain|startswith($x)) | .domain +" "+ .ip_address + " " +.name ' -r
+            if [[ "$h" = "" ]] ;then
                fatalerr "No server begins with such name." 
             else
-               host=$h
+               #host=$h
+               echo "$h" | read hostname serverip servername
             fi
             ;;
       esac
@@ -134,10 +138,12 @@ if [[ $(getcap $(which openvpn)) != *'openvpn cap_net_admin=ep' ]] ;then
       echowarn 'OpenVPN usually requires root'
 fi
 
-echomsg "Connecting to $host:$port via $protocol"
+# echomsg "Connecting to $host:$port via $protocol"
+echomsg "Connecting to $servername -- $serverip:$port ($hostname) via $protocol"
+
 
 $( [[ $DryRun = y ]] && echo echo || echo exec ) \
    openvpn \
-   --config <(echo remote $host $port $protocol) \
+   --config <(echo remote $serverip $port $protocol) \
    --config $DIR/nordvpn.base.ovpn \
    --config <(echo auth-user-pass $open_auth) \

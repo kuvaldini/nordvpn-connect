@@ -100,6 +100,12 @@ Select/filter servers by country
 
     jq <server.short.json '.[]|select(.name|contains("Ukraine"))'
 
+    jq <server.short.json -c --arg x uk '.[]|select(.domain|startswith($x))'
+
+Convert to CSV
+
+    jq <servers.short.json '.[] | [.domain,.ip_address,.name] | @tsv' -r >server.ip.name.csv
+
 
 ## LINKS
 - https://community.openvpn.net/openvpn/wiki/IgnoreRedirectGateway
@@ -117,6 +123,8 @@ Select/filter servers by country
 - encrypt/decrypt with master trusted key using assimmetric algorithm
 - version
 - test for a fastest server, cache the value
+- CI testing
+- set 'remote' by IP - do not rely on DNS
 
 ```
 Firewall: enabled

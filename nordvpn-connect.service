@@ -1,0 +1,29 @@
+## Nordvpn connector script
+## https://github.com/kuvaldini/nordvpn-connect
+
+[Unit]
+Description=nordvpn-connect
+# Requires=avahi-daemon.socket avahi-daemon.service
+After= syslog.target network-online.target
+Wants= network-online.target
+Documentation= https://github.com/kuvaldini/nordvpn-connect
+
+[Service]
+Type=simple  
+#or Type=notify
+ExecStart=/usr/local/bin/nordvpn-connect -f $HOME/.config/nordvpn-connect.args
+# WorkingDirectory=$HOME
+# PrivateTmp=true
+# WorkingDirectory=/etc/openvpn/client
+# User=openvpn
+# Group=network
+# AmbientCapabilities=CAP_IPC_LOCK CAP_NET_ADMIN CAP_NET_RAW CAP_SETGID CAP_SETUID CAP_SYS_CHROOT CAP_DAC_OVERRIDE
+# CapabilityBoundingSet=CAP_IPC_LOCK CAP_NET_ADMIN CAP_NET_RAW CAP_SETGID CAP_SETUID CAP_SYS_CHROOT CAP_DAC_OVERRIDE# LimitNPROC=10
+# DeviceAllow=/dev/null rw
+# DeviceAllow=/dev/net/tun rw
+# ProtectSystem=true
+# ProtectHome=true
+# KillMode=process
+
+[Install]
+WantedBy=multi-user.target

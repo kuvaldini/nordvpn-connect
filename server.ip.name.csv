@@ -235,11 +235,13 @@ au769.nordvpn.com	103.137.15.75	Australia #769
 au770.nordvpn.com	103.137.15.83	Australia #770
 au772.nordvpn.com	45.248.78.2	Australia #772
 au773.nordvpn.com	45.248.78.6	Australia #773
+au774.nordvpn.com	45.248.78.10	Australia #774
 au775.nordvpn.com	45.248.78.226	Australia #775
 au776.nordvpn.com	45.248.78.231	Australia #776
 au777.nordvpn.com	45.248.78.236	Australia #777
 au778.nordvpn.com	45.248.78.241	Australia #778
 au779.nordvpn.com	45.248.78.178	Australia #779
+au780.nordvpn.com	45.248.78.185	Australia #780
 au781.nordvpn.com	45.248.78.194	Australia #781
 au782.nordvpn.com	45.248.78.201	Australia #782
 au783.nordvpn.com	45.248.78.26	Australia #783
@@ -385,7 +387,14 @@ ca-us43.nordvpn.com	139.28.218.43	Canada - United States #43
 ca-us44.nordvpn.com	139.28.218.44	Canada - United States #44
 ca-us47.nordvpn.com	139.28.218.75	Canada - United States #47
 ca-us48.nordvpn.com	139.28.218.76	Canada - United States #48
+ca-us49.nordvpn.com	217.138.213.123	Canada - United States #49
+ca-us50.nordvpn.com	217.138.213.124	Canada - United States #50
+ca-us51.nordvpn.com	217.138.213.147	Canada - United States #51
+ca-us52.nordvpn.com	217.138.213.148	Canada - United States #52
+ca-us53.nordvpn.com	217.138.213.171	Canada - United States #53
+ca-us54.nordvpn.com	217.138.213.172	Canada - United States #54
 ca-us55.nordvpn.com	217.138.200.251	Canada - United States #55
+ca-us56.nordvpn.com	217.138.200.252	Canada - United States #56
 ca-us57.nordvpn.com	217.138.213.155	Canada - United States #57
 ca-us58.nordvpn.com	217.138.213.156	Canada - United States #58
 ca-us59.nordvpn.com	217.138.213.163	Canada - United States #59
@@ -805,6 +814,7 @@ ca974.nordvpn.com	66.115.147.134	Canada #974
 ca975.nordvpn.com	66.115.147.137	Canada #975
 ca976.nordvpn.com	66.115.147.140	Canada #976
 ca977.nordvpn.com	66.115.147.143	Canada #977
+ca978.nordvpn.com	66.115.147.148	Canada #978
 ca979.nordvpn.com	66.115.147.151	Canada #979
 ca980.nordvpn.com	66.115.147.154	Canada #980
 ca981.nordvpn.com	66.115.147.157	Canada #981
@@ -830,6 +840,7 @@ ch-nl10.nordvpn.com	91.132.136.220	Switzerland - Netherlands #10
 ch-nl11.nordvpn.com	217.138.203.212	Switzerland - Netherlands #11
 ch-nl12.nordvpn.com	195.242.213.227	Switzerland - Netherlands #12
 ch-nl8.nordvpn.com	217.138.203.251	Switzerland - Netherlands #8
+ch-onion2.nordvpn.com	37.120.137.172	Switzerland Onion #2
 ch-se10.nordvpn.com	91.132.136.219	Switzerland - Sweden #10
 ch-se11.nordvpn.com	217.138.203.211	Switzerland - Sweden #11
 ch-se12.nordvpn.com	195.242.213.228	Switzerland - Sweden #12
@@ -932,6 +943,7 @@ ch381.nordvpn.com	89.37.173.210	Switzerland #381
 ch382.nordvpn.com	89.37.173.219	Switzerland #382
 ch383.nordvpn.com	89.37.173.228	Switzerland #383
 ch384.nordvpn.com	89.37.173.237	Switzerland #384
+ch385.nordvpn.com	89.37.173.246	Switzerland #385
 cl19.nordvpn.com	45.228.209.43	Chile #19
 cl20.nordvpn.com	45.228.209.51	Chile #20
 cl23.nordvpn.com	45.228.209.115	Chile #23
@@ -962,7 +974,6 @@ cy14.nordvpn.com	185.106.102.200	Cyprus #14
 cy15.nordvpn.com	185.106.102.216	Cyprus #15
 cy16.nordvpn.com	185.191.206.3	Cyprus #16
 cy17.nordvpn.com	185.191.206.8	Cyprus #17
-cy18.nordvpn.com	195.47.194.45	Cyprus #18
 cy19.nordvpn.com	185.191.206.13	Cyprus #19
 cy20.nordvpn.com	185.191.206.23	Cyprus #20
 cy21.nordvpn.com	185.191.206.28	Cyprus #21
@@ -1904,6 +1915,17 @@ it219.nordvpn.com	82.102.21.123	Italy #219
 it220.nordvpn.com	82.102.21.195	Italy #220
 it221.nordvpn.com	95.174.64.35	Italy #221
 it222.nordvpn.com	146.70.73.91	Italy #222
+it223.nordvpn.com	138.199.54.242	Italy #223
+it224.nordvpn.com	138.199.54.247	Italy #224
+it225.nordvpn.com	178.249.211.42	Italy #225
+it226.nordvpn.com	178.249.211.37	Italy #226
+it227.nordvpn.com	178.249.211.32	Italy #227
+it228.nordvpn.com	178.249.211.27	Italy #228
+it229.nordvpn.com	178.249.211.22	Italy #229
+it230.nordvpn.com	178.249.211.17	Italy #230
+it231.nordvpn.com	178.249.211.12	Italy #231
+it232.nordvpn.com	178.249.211.7	Italy #232
+it233.nordvpn.com	178.249.211.2	Italy #233
 jp429.nordvpn.com	37.120.210.107	Japan #429
 jp454.nordvpn.com	89.187.161.54	Japan #454
 jp514.nordvpn.com	37.120.154.211	Japan #514
@@ -2112,6 +2134,7 @@ nl-ch10.nordvpn.com	194.127.173.35	Netherlands - Switzerland #10
 nl-ch11.nordvpn.com	213.232.87.146	Netherlands - Switzerland #11
 nl-ch8.nordvpn.com	213.232.87.170	Netherlands - Switzerland #8
 nl-ch9.nordvpn.com	213.232.87.171	Netherlands - Switzerland #9
+nl-onion4.nordvpn.com	217.23.9.213	Netherlands Onion #4
 nl-onion6.nordvpn.com	213.232.87.219	Netherlands Onion #6
 nl-se10.nordvpn.com	194.127.173.34	Netherlands - Sweden #10
 nl-se11.nordvpn.com	213.232.87.174	Netherlands - Sweden #11
@@ -2151,7 +2174,6 @@ nl755.nordvpn.com	195.181.173.104	Netherlands #755
 nl756.nordvpn.com	185.229.191.101	Netherlands #756
 nl757.nordvpn.com	213.152.188.36	Netherlands #757
 nl767.nordvpn.com	185.59.222.116	Netherlands #767
-nl815.nordvpn.com	178.239.173.251	Netherlands #815
 nl816.nordvpn.com	178.239.173.247	Netherlands #816
 nl817.nordvpn.com	178.239.173.243	Netherlands #817
 nl818.nordvpn.com	178.239.173.239	Netherlands #818
@@ -3482,6 +3504,8 @@ us4963.nordvpn.com	138.199.9.130	United States #4963
 us4964.nordvpn.com	138.199.9.131	United States #4964
 us4965.nordvpn.com	172.93.146.171	United States #4965
 us4966.nordvpn.com	172.93.146.172	United States #4966
+us4967.nordvpn.com	212.102.40.54	United States #4967
+us4968.nordvpn.com	212.102.40.55	United States #4968
 us4969.nordvpn.com	138.199.9.133	United States #4969
 us4970.nordvpn.com	138.199.9.134	United States #4970
 us4971.nordvpn.com	172.93.146.187	United States #4971
@@ -4993,6 +5017,7 @@ us9283.nordvpn.com	138.199.9.148	United States #9283
 us9284.nordvpn.com	138.199.9.152	United States #9284
 us9286.nordvpn.com	185.217.69.67	United States #9286
 us9287.nordvpn.com	185.217.69.136	United States #9287
+us9288.nordvpn.com	185.217.69.176	United States #9288
 us9289.nordvpn.com	185.217.69.141	United States #9289
 us9290.nordvpn.com	185.217.69.131	United States #9290
 us9292.nordvpn.com	185.217.69.151	United States #9292

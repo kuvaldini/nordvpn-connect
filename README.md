@@ -115,16 +115,14 @@ Convert to CSV
 - stabilize connection after sleep
 - systemd config to connect at startup
 - optional killswitch by unrouting all
-- suggest adguard-dnsserver on localhost
 - protect from server's routes https://community.openvpn.net/openvpn/wiki/IgnoreRedirectGateway
-- protect from server's dns
+- protect from server's dns, suggest adguard-dnsserver on localhost
 - notify desktop
-- integrate with NetworkManager
-- encrypt/decrypt with master trusted key using assimmetric algorithm
-- version
 - test for a fastest server, cache the value
 - CI testing
-- set 'remote' by IP - do not rely on DNS
+- CI schedule update servers list CSV
+- encrypt/decrypt auth_file with master trusted key using assimmetric algorithm
+- integrate with NetworkManager
 
 ```
 Firewall: enabled

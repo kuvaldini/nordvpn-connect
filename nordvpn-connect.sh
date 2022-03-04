@@ -28,11 +28,13 @@ END
    cat <<END
 Calls openvpn command to connect to selected NordVPN server.
 USAGE:
-   nordvpn-connect <COUNTRY|serverspec> [PROTOCOL]
+   nordvpn-connect [country_code] [protocol]
+   nordvpn-connect [server_fuzzy_name] [protocol]
    nordvpn-connect --help
-COUNTRY: $(--countries)
-SERVER: may specify any letters correponding to the begining of server address
-PROTOCOLS: tcp, udp
+Where:
+   country_code: $(--countries)
+   server_fuzzy_name: country name and/or server number for fuzzy search. i.e: Ukraine, albaia21
+   protocol: tcp, udp
 OPTIONS:
 END
    awk '/^\s*## ARGUMENTS/,/^\s*## END ARGUMENTS/ ' ${BASH_SOURCE[0]} | 
@@ -49,59 +51,81 @@ while [[ $# > 0 ]] ;do
    case "$1" in
       ## ARGUMENTS
       tcp|udp) protocol=$1 ;;
-      -c|--countries) ## List available countries
+      -c|--countries)                 ## List available countries
          #test "" = "${do_action:-}" && do_action=--countries || echowarn "do_action already set to '$do_action'"
          echo -n "Countries available: "; --countries
+         echo
          exit 0
          ;;
-      -l|--list|--list-servers)   ## List available servers with given serverspec, default=all
+      -l|--list|--list-servers)       ## List available servers with given serverspec, default=all
          test "" = "${do_action:-}" && do_action=--list-servers || echowarn "do_action already set to '$do_action'"
          ;;
-      -f|--args-from)
-         #test "" = "${args_from:-}" && args_from="$2" || echowarn "args_from already set to '$args_from'"
-         #shift
+      -f|--args-from)                 ## Take arguments from file, drop rest
          set -- tobeshifted $(sed '/^[ \t]*#/d' "$2" | xargs)
          ;;
-      -a|--auth-file)
+      -a|--auth-file)                 ## Provide path to authorization file
          test "" = "${auth_file:-}" && auth_file="$2" || echowarn "auth_file already set to '$auth_file'"
          shift
          ;;
-      -u|--update|--update-servers)  ## Update servers list
-         cd $DIR
-         echo "Updating servers list..."
-         curl https://api.nordvpn.com/server -fsSLv >servers.json \
-            -H"User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:97.0) Gecko/20100101 Firefox/97.0"
-         jq <servers.json 'map({name,domain,ip_address}) |sort_by(.domain)' >servers.short.json
-         jq <servers.short.json '.[] | [.domain,.ip_address,.name] | @tsv' --raw-output >server.ip.name.csv
-         cd -
-         exit
+      -u|--update|--update-servers)   ## Update servers list
+         set +e
+         ( 
+            set -Eeuo pipefail
+            cd $DIR
+            echo >&2 "Updating servers list..."
+            curl https://api.nordvpn.com/server -fsSL >servers.json \
+               -H"User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:97.0) Gecko/20100101 Firefox/97.0"  \
+               || fatalerr "Failed to get servers.json from NordVPN API."
+            jq <servers.json 'map({name,domain,ip_address}) |sort_by(.domain)' >servers.short.json
+            jq <servers.short.json '.[] | [.domain,.ip_address,.name] | @tsv' --raw-output >server.ip.name.csv
+            git diff -U0 --color=always  -- server.ip.name.csv | 
+               grep --color=none -v -e '@@ ' -e 'diff --git' -e 'index ' -e '--- a/' -e '+++ b/'
+         )
+         update_result=$?
+         if test $# = 1 -a "${serverspec:-}" = '' ;then
+            exit $update_result
+         fi
+         set -e
          ;;
-      -U|--upgrade)   ## Upgrade the script and repo
+      -U|--upgrade|--upgrade-script)  ## Upgrade the script and repo
          exec git -C $DIR pull
          ;;
-      -g|--genconfig|--gen-config)
+      -g|--genconfig|--gen-config)    ## Generate OpenVPN configuration file to stdout
          test "" = "${do_action:-}" && do_action=--gen-config || echowarn "do_action already set to '$do_action'"
          ;;
-      -h|--help)      ## Show this help
+      -h|--help)                      ## Show this help
          --help
          exit 0
          ;;
-      -V|--version)   ## Show version
+      -V|--version)                   ## Show version
          --version
          exit 0
          ;;
-      -n|--dry-run)   ## Dry run, not execute but echo openvpn command
+      -n|--dry-run)                   ## Dry run, not execute but echo openvpn command
          DryRun=y
          ;;
-      -x|--trace)     ## Trace as bash -x
+      -x|--trace)                     ## Trace as bash -x
          set -x
          ;;
       ## END ARGUMENTS
-      \#*)
-         break  ## stop parsing arguments
+      -?)  ## one char - unknown
+         fatalerr "Unknown short option '$1'"
          ;;
+      --*)
+         fatalerr "Unknown option '$1'"
+         ;;
+      -*)  ## multiple chars -> unwrap multiple flags
+         echo -n "${1#-}" | while read -n1 C; do
+            args+="-$C "
+         done
+         shift
+         set tobeshifted $args "$@"
+         ;;
+      # \#*)
+      #    break  ## stop parsing arguments
+      #    ;;
       *)
-         test "" = "${serverspec:-}" && serverspec="$1" || echowarn "serverspec already set to '$serverspec'"
+         test "" = "${serverspec:-}" && serverspec="$1" || fatalerr "serverspec cannot be set twice"
          ;;
    esac
    shift
@@ -112,15 +136,26 @@ done
 echo >&2 "This simple script gathers no data not about hardware nor about user."\
         "Sends nothing nowhere. Just VPN."
 
-
 --list-servers(){
    ## Extract from test file contains names line ua57.nordvpn.com
    # h=$(v="$1" awk 'index($0, ENVIRON["v"])==1' $DIR/SERVERS.txt | shuf -n1)
    ## Extract from JSON file
    # h=$(jq -r <$DIR/servers.short.json --arg x "$1" '.[]|select(.domain|startswith($x))| .domain +" "+ .ip_address + " " +.name' )
    ## Extract from CSV file
-   v="${serverspec:-}" awk 'index($0, ENVIRON["v"])==1' $DIR/server.ip.name.csv | 
-      tee >( test $(wc -l) != 0 || fatalerr "No server begins with such name."; )
+   # awk -F$'\t' -vIGNORECASE=1 -vv="$(printf %q ${serverspec:-})"  'index($0, v)==1 || $3 ~ v' $DIR/server.ip.name.csv | 
+   #    tee >( test $(wc -l) != 0 || fatalerr "No server begins with such name '${serverspec:-}'."; )
+   # awk -F$'\t' -vIGNORECASE=1 -vS="$(printf %q ${serverspec:-})"  'index($1, S)==1' $DIR/server.ip.name.csv | 
+   #    tee >( test $(wc -l) != 0 ||
+   grep -i "^${serverspec:-}" $DIR/server.ip.name.csv ||
+      {
+         if fzf --version &>/dev/null ;then
+            fzf --filter="${serverspec:-}" --no-sort <$DIR/server.ip.name.csv
+         else
+            echowarn "fzf is not installed or not in PATH, using grep instead."
+            grep -i '.*\t.*'"${serverspec:-}" <$DIR/server.ip.name.csv
+         fi
+      } ||
+      fatalerr "No server begins with such name '${serverspec:-}', no fuzzy corresponding to server name"; 
 }
 
 case "${do_action:-}" in
@@ -137,16 +172,15 @@ then port=1194
 else port=443
 fi
 
-
 case "${do_action:-}" in
    --gen-config)
       cat <<END
 remote $serverip $port $protocol
 $(cat $DIR/nordvpn.base.ovpn)
-#auth-user-pass ${open_auth:-/path/to/open_auth.txt}
+auth-user-pass ${open_auth:-/tmp/nordvpn-auth.txt}
 END
       exit 0;
-      ;;
+      ;; 
 esac
 
 USR="${SUDO_USER:-$USER}"

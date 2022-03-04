@@ -88,7 +88,7 @@ while [[ $# > 0 ]] ;do
          set -e
          ;;
       -U|--upgrade|--upgrade-script)  ## Upgrade the script and repo
-         exec git -C $DIR pull
+         exec git -C $DIR pull origin master --rebase -X ours
          ;;
       -g|--genconfig|--gen-config)    ## Generate OpenVPN configuration file to stdout
          test "" = "${do_action:-}" && do_action=--gen-config || echowarn "do_action already set to '$do_action'"

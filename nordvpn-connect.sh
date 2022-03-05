@@ -15,6 +15,9 @@ function echowarn { >&2 echo $'\e[0;33m'WARNING$'\e[0m' "$@"; }
 function echoerr  { >&2 echo $'\e[0;31m'ERROR$'\e[0m' "$@"; }
 function fatalerr { >&2 echoerr "$@"; exit 1; }
 
+[[ "$DIR" = *' '* ]] && fatalerr "Program expects to be located without at path WITHOUT spaces."
+cd "$DIR"
+
 --version(){
    cat <<END
 nordvpn-connect version $VERSION
@@ -22,7 +25,7 @@ END
 }
 --countries(){
    # cat SERVERS.txt | cut -c-2  | uniq | tr '\n' ' '
-   cat "$DIR"/server.ip.name.csv | cut -c-2  | uniq | tr '\n' ' '
+   cat "$DIR"/server.csv | cut -c-2  | uniq | tr '\n' ' '
 }
 --help(){
    cat <<END
@@ -46,6 +49,8 @@ END
 
 protocol=tcp
 DryRun=n
+declare -i use_fastest=0
+readonly latency_unknown=98767
 
 while [[ $# > 0 ]] ;do
    case "$1" in
@@ -76,19 +81,50 @@ while [[ $# > 0 ]] ;do
             curl https://api.nordvpn.com/server -fsSL >servers.json \
                -H"User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:97.0) Gecko/20100101 Firefox/97.0"  \
                || fatalerr "Failed to get servers.json from NordVPN API."
-            jq <servers.json 'map({name,domain,ip_address}) |sort_by(.domain)' >servers.short.json
-            jq <servers.short.json '.[] | [.domain,.ip_address,.name] | @tsv' --raw-output >server.ip.name.csv
-            git diff -U0 --color=always  -- server.ip.name.csv | 
+            # jq <servers.json 'map({name,domain,ip_address}) |sort_by(.domain)' >servers.short.json
+            jq <servers.json 'map({name,domain,ip_address})' >servers.short.json
+            jq <servers.short.json ".[] | [.domain,.ip_address,$latency_unknown,.name] | @tsv" --raw-output >server.csv
+            git diff -U0 --color=always  -- server.csv | 
                grep --color=none -v -e '@@ ' -e 'diff --git' -e 'index ' -e '--- a/' -e '+++ b/'
+            echomsg "Servers database updated. Use --reindex-fastest to update latencies."
          )
          update_result=$?
+         ## Exit if this is last argument and serverspec was not set
          if test $# = 1 -a "${serverspec:-}" = '' ;then
             exit $update_result
          fi
          set -e
          ;;
-      -U|--upgrade|--upgrade-script)  ## Upgrade the script and repo
-         exec git -C $DIR pull origin master --rebase -X ours
+      -r|--reindex-fastest)                   ## Detect optimal servers (lowest ping)
+         echo >&2 "Checking ping delay to servers. This takes a while..."
+         fastest_server=`mktemp` #rm -f fastest_server.csv
+         readonly pingjobsMAX=24
+         tac $DIR/server.csv | while read domain ipaddr oldpingavg name ;do
+            echo -ne "\e[2K\rChecking server $domain $ipaddr..."
+            ping -q -c3 -w10 -i.7 -l2 $ipaddr | tail -1 | 
+               sed -nE 's,^rtt min.*(.*)/(.*)/(.*)/(.*) ms.*,\2,p;tx;q1;:x' | {
+                  read pingavg || echo "Failed to read ping time for server $domain $ipaddr: ${pingavg:-$oldpingavg}"
+                  echo -e "$domain\t$ipaddr\t${pingavg:-$oldpingavg}\t$name" >>$fastest_server
+               } &
+            if test `jobs -rp | wc -l` -ge $pingjobsMAX ;then
+               # echo -e "\npingjobsMAX"
+               wait #-fn #|| true
+               sleep 2
+            fi
+         done
+         echo
+         <$fastest_server sort --numeric-sort --key=3 >server.csv
+         ## Exit if this is last argument and serverspec was not set
+         if test $# = 1 -a "${serverspec:-}" = '' ;then
+            exit
+         fi
+         ;;
+      --fastest)                      ## Use server with lowest ping among 50 instead of random
+         use_fastest=50
+         ;;
+      --fastest=*)                    ## Use server with lowest ping among N instead of random
+         declare -i use_fastest=${1#*=}
+         test $use_fastest -eq $use_fastest 2>&- || fatalerr "fastest must be a number"
          ;;
       -g|--genconfig|--gen-config)    ## Generate OpenVPN configuration file to stdout
          test "" = "${do_action:-}" && do_action=--gen-config || echowarn "do_action already set to '$do_action'"
@@ -145,20 +181,24 @@ echo >&2 "This simple script gathers no data not about hardware nor about user."
    ## Extract from JSON file
    # h=$(jq -r <$DIR/servers.short.json --arg x "$1" '.[]|select(.domain|startswith($x))| .domain +" "+ .ip_address + " " +.name' )
    ## Extract from CSV file
-   # awk -F$'\t' -vIGNORECASE=1 -vv="$(printf %q ${serverspec:-})"  'index($0, v)==1 || $3 ~ v' $DIR/server.ip.name.csv | 
+   # awk -F$'\t' -vIGNORECASE=1 -vv="$(printf %q ${serverspec:-})"  'index($0, v)==1 || $3 ~ v' $DIR/server.csv | 
    #    tee >( test $(wc -l) != 0 || fatalerr "No server begins with such name '${serverspec:-}'."; )
-   # awk -F$'\t' -vIGNORECASE=1 -vS="$(printf %q ${serverspec:-})"  'index($1, S)==1' $DIR/server.ip.name.csv | 
+   # awk -F$'\t' -vIGNORECASE=1 -vS="$(printf %q ${serverspec:-})"  'index($1, S)==1' $DIR/server.csv | 
    #    tee >( test $(wc -l) != 0 ||
-   grep -i "^${serverspec:-}" $DIR/server.ip.name.csv ||
-      {
-         if fzf --version &>/dev/null ;then
-            fzf --filter="${serverspec:-}" --no-sort <$DIR/server.ip.name.csv
-         else
-            echowarn "fzf is not installed or not in PATH, using grep instead."
-            grep -i '.*\t.*'"${serverspec:-}" <$DIR/server.ip.name.csv
-         fi
-      } ||
-      fatalerr "No server begins with such name '${serverspec:-}', no fuzzy corresponding to server name"; 
+   if test "${serverspec:-}" = '' ;then
+      cat "$DIR"/server.csv
+   else
+      grep -i "^${serverspec:-}" $DIR/server.csv ||
+         {
+            if fzf --version &>/dev/null ;then
+               fzf --filter="${serverspec:-}" --no-sort <$DIR/server.csv
+            else
+               echowarn "fzf is not installed or not in PATH, using grep instead."
+               grep -i '.*\t.*'"${serverspec:-}" <$DIR/server.csv
+            fi
+         } ||
+         fatalerr "No server begins with such name '${serverspec:-}', no fuzzy corresponding to server name"; 
+   fi
 }
 
 case "${do_action:-}" in
@@ -169,7 +209,22 @@ case "${do_action:-}" in
       ;;
 esac
 
---list-servers | shuf -n1 | read hostname serverip servername
+if [[ $use_fastest > 0 ]] ;then
+   select_server(){
+      # sort --numeric-sort --key=3 | grep -v '^.*\s.*\s0' | head -n100 | shuf -n1
+      ## Expects sorted input
+      { grep -v "^.*\s.*\s$latency_unknown" || 
+         fatalerr "No latency information provided, use --reindex-fastest first or remove flag --fastest"; } | 
+            sed -n 1,${use_fastest}p | shuf -n1
+   }
+else
+   select_server(){
+      shuf -n1
+   }
+fi
+
+--list-servers | select_server | read hostname serverip pingavg servername || 
+   fatalerr 'Failed to select server.'
 if [[ $protocol = udp ]]
 then port=1194
 else port=443
@@ -215,16 +270,16 @@ if test -s "$auth_file" ;then
       mv -f "$auth_file"{.x,}
    fi
 else
+   ## ToDo detect is_interactive
    echomsg "Auth_file '$auth_file' does not exist. "\
          "Enter username and password (optional) to store in encrypted file. "\
          "Leave empty, then OpenVPN will ask you every time directly."
-   read  -rp "Username: " vpnuser
-   read -rsp "Password: " vpnpass
+   read  -rp "Username: " vpnuser || fatalerr "Failed to read vpnuser"
+   read -rsp "Password: " vpnpass || fatalerr "Failed to read vpnpassword"
    gpgp -o "$auth_file" --symmetric <( echo "$vpnuser"; echo "$vpnpass"; )
    chmod 400 "$auth_file"
-   # open_auth=
 fi
-## Decrypt auth data to file. ToDo use fifo with root
+## Decrypt auth data to file. ToDo be able to use fifo with root
 open_auth=$(mktemp )
 # mknod -m600 $open_auth p ## One-time readable. Become empty after openvpn reads it, but does not work
 # exec 7<>$open_auth
@@ -233,10 +288,11 @@ gpgp --decrypt "$auth_file" >$open_auth
 
 if [[ $(getcap $(which openvpn)) != *'openvpn cap_net_admin=ep' ]] ;then
    [[ "`id -u`" != 0 ]] &&
-      echowarn 'OpenVPN usually requires root'
+      echowarn 'OpenVPN usually requires root or cap_net_admin'
 fi
 
-echomsg "Connecting to $servername -- $serverip:$port ($hostname) via $protocol"
+if test "$pingavg" = $latency_unknown ;then pingavg=unknown; else pingavg=${pingavg}ms ;fi
+echomsg "Connecting to $servername -- $serverip:$port ($hostname) via $protocol where latency is ${pingavg}"
 
 
 $( [[ $DryRun = y ]] && echo echo || echo exec ) \

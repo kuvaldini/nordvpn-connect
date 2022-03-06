@@ -47,10 +47,23 @@ SITE: https://github.com/kuvaldini/nordvpn-connect
 END
 }
 
+exit_if_last_arg(){
+   ## Exit if this is last argument and serverspec was not set
+   if test $1 = 1 -a "${serverspec:-}" = '' ;then
+      exit ${2:-}
+   fi
+}
+
+readonly sameline=$'\e[2K\r'
 protocol=tcp
 DryRun=n
 declare -i use_fastest=0
 readonly latency_unknown=98767
+do_actions=
+
+if ! test -s server.user.json ;then
+   cp server.{short,user}.json
+fi
 
 while [[ $# > 0 ]] ;do
    case "$1" in
@@ -78,46 +91,56 @@ while [[ $# > 0 ]] ;do
             set -Eeuo pipefail
             cd $DIR
             echo >&2 "Updating servers list..."
-            curl https://api.nordvpn.com/server -fsSL >servers.json \
+            curl https://api.nordvpn.com/server -fsSL >server.full.json \
                -H"User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:97.0) Gecko/20100101 Firefox/97.0"  \
-               || fatalerr "Failed to get servers.json from NordVPN API."
-            # jq <servers.json 'map({name,domain,ip_address}) |sort_by(.domain)' >servers.short.json
-            jq <servers.json 'map({name,domain,ip_address})' >servers.short.json
-            jq <servers.short.json ".[] | [.domain,.ip_address,$latency_unknown,.name] | @tsv" --raw-output >server.csv
-            git diff -U0 --color=always  -- server.csv | 
-               grep --color=none -v -e '@@ ' -e 'diff --git' -e 'index ' -e '--- a/' -e '+++ b/'
+               || fatalerr "Failed to get server.full.json from NordVPN API."
+            jq --slurp '[ .[] | map({ (.domain) : {ip_address,name,ping_latency} }) | add ] | .[0] * .[1] | to_entries | 
+                        map(.value.ping_latency//='$latency_unknown') |
+                        sort_by(.value.ping_latency) | map({"domain":.key}+.value)' server.full.json server.user.json >server.user.temp.json
+            # jq '(.[0] | map({ (.domain) : {ip_address,name} }) | add) * .[1] | to_entries | map(.value.ping_latency//='$latency_unknown') |
+            #     sort_by(.value.ping_latency) | map({"domain":.key}+.value)' \
+            #             --slurp server.full.json latencies.json >server.user.temp.json
+            mv -f server.user{.temp,}.json
+            jq <server.user.json ".[] | [.domain,.ip_address,.ping_latency//$latency_unknown,.name] | @tsv" --raw-output >server.csv
+            # git diff -U0 --color=always  -- server.csv | 
+            #    grep --color=none -v -e '@@ ' -e 'diff --git' -e 'index ' -e '--- a/' -e '+++ b/'
             echomsg "Servers database updated. Use --reindex-fastest to update latencies."
          )
-         update_result=$?
-         ## Exit if this is last argument and serverspec was not set
-         if test $# = 1 -a "${serverspec:-}" = '' ;then
-            exit $update_result
-         fi
+         exit_if_last_arg $# $?
          set -e
          ;;
-      -r|--reindex-fastest)                   ## Detect optimal servers (lowest ping)
-         echo >&2 "Checking ping delay to servers. This takes a while..."
+      -r|--reindex-fastest)           ## Detect optimal servers (lowest ping), ToDo make longer test with iperf or ookla speedtest.
+         echo >&2 "Checking ping delay to servers. Make sure your are not connected to any proxy or VPN. This takes a while (10 min)..."
          fastest_server=`mktemp` #rm -f fastest_server.csv
+         latencies_json=latencies.json #`mktemp`
+         echo '{' >$latencies_json
          readonly pingjobsMAX=24
-         tac $DIR/server.csv | while read domain ipaddr oldpingavg name ;do
-            echo -ne "\e[2K\rChecking server $domain $ipaddr..."
+         declare -i i=1 max=`wc -l server.csv`
+         shuf $DIR/server.csv | while read domain ipaddr oldpingavg name ;do
+            echo -n "${sameline}Checking server $i/ $domain $ipaddr..."
             ping -q -c3 -w10 -i.7 -l2 $ipaddr | tail -1 | 
                sed -nE 's,^rtt min.*(.*)/(.*)/(.*)/(.*) ms.*,\2,p;tx;q1;:x' | {
                   read pingavg || echo "Failed to read ping time for server $domain $ipaddr: ${pingavg:-$oldpingavg}"
                   echo -e "$domain\t$ipaddr\t${pingavg:-$oldpingavg}\t$name" >>$fastest_server
-               } &
+                  echo "\"$domain\":{ \"ping_latency\":${pingavg:-$oldpingavg} }," >>$latencies_json
+               } & sleep .1
             if test `jobs -rp | wc -l` -ge $pingjobsMAX ;then
                # echo -e "\npingjobsMAX"
                wait #-fn #|| true
-               sleep 2
+               sleep 1
             fi
+            ((++i))
          done
+         wait; sleep 1
          echo
          <$fastest_server sort --numeric-sort --key=3 >server.csv
-         ## Exit if this is last argument and serverspec was not set
-         if test $# = 1 -a "${serverspec:-}" = '' ;then
-            exit
-         fi
+         sed -i '${s/,$/\n\}/}'  $latencies_json  ## remove last comma and add closing bracket
+         jq '(map({ (.domain) : {ip_address,name,ping_latency} }) | add) * $lat[0] | to_entries | map(.value.ping_latency//='$latency_unknown') |
+                sort_by(.value.ping_latency) | map({"domain":.key}+.value)' \
+               <server.user.json --slurpfile lat $latencies_json >server.user.temp.json 
+         mv -f server.user{.temp,}.json
+         rm -f $latencies_json
+         exit_if_last_arg $#
          ;;
       --fastest)                      ## Use server with lowest ping among 50 instead of random
          use_fastest=50
@@ -179,7 +202,7 @@ echo >&2 "This simple script gathers no data not about hardware nor about user."
    ## Extract from test file contains names line ua57.nordvpn.com
    # h=$(v="$1" awk 'index($0, ENVIRON["v"])==1' $DIR/SERVERS.txt | shuf -n1)
    ## Extract from JSON file
-   # h=$(jq -r <$DIR/servers.short.json --arg x "$1" '.[]|select(.domain|startswith($x))| .domain +" "+ .ip_address + " " +.name' )
+   # h=$(jq -r <$DIR/server.short.json --arg x "$1" '.[]|select(.domain|startswith($x))| .domain +" "+ .ip_address + " " +.name' )
    ## Extract from CSV file
    # awk -F$'\t' -vIGNORECASE=1 -vv="$(printf %q ${serverspec:-})"  'index($0, v)==1 || $3 ~ v' $DIR/server.csv | 
    #    tee >( test $(wc -l) != 0 || fatalerr "No server begins with such name '${serverspec:-}'."; )
@@ -187,10 +210,14 @@ echo >&2 "This simple script gathers no data not about hardware nor about user."
    #    tee >( test $(wc -l) != 0 ||
    if test "${serverspec:-}" = '' ;then
       cat "$DIR"/server.csv
+   elif [[ "${serverspec:-}" != ??* ]] ;then
+      fatalerr "serverspec must be longer than 2"
    else
-      grep -i "^${serverspec:-}" $DIR/server.csv ||
+      grep -i "^$serverspec" $DIR/server.csv ||
          {
-            if fzf --version &>/dev/null ;then
+            if echo "$serverspec" | grep -qEo '^[[:alpha:]]{2}[[:digit:]]*$' ;then
+               fatalerr "No server name begins with '$serverspec'"; 
+            elif fzf --version &>/dev/null ;then
                fzf --filter="${serverspec:-}" --no-sort <$DIR/server.csv
             else
                echowarn "fzf is not installed or not in PATH, using grep instead."
@@ -292,7 +319,7 @@ if [[ $(getcap $(which openvpn)) != *'openvpn cap_net_admin=ep' ]] ;then
 fi
 
 if test "$pingavg" = $latency_unknown ;then pingavg=unknown; else pingavg=${pingavg}ms ;fi
-echomsg "Connecting to $servername -- $serverip:$port ($hostname) via $protocol where latency is ${pingavg}"
+echomsg "Connecting to $servername -- $serverip:$port ($hostname) via $protocol, latency ${pingavg}"
 
 
 $( [[ $DryRun = y ]] && echo echo || echo exec ) \

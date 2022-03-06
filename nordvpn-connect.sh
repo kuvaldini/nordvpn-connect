@@ -25,7 +25,7 @@ END
 }
 --countries(){
    # cat SERVERS.txt | cut -c-2  | uniq | tr '\n' ' '
-   cat "$DIR"/server.csv | cut -c-2  | uniq | tr '\n' ' '
+   cat "$DIR"/server.csv | cut -c-2  | sort -u | tr '\n' ' '
 }
 --help(){
    cat <<END

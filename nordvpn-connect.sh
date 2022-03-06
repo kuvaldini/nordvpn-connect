@@ -117,7 +117,7 @@ while [[ $# > 0 ]] ;do
          exit_if_last_arg $# $?
          set -e
          ;;
-      -r|--reindex-fastest)           ## Detect optimal servers (lowest ping), ToDo make longer test with iperf or ookla speedtest.
+      -r|--reindex-fastest)           ## Detect optimal servers (lowest ping), ToDo make longer test with iperf or ookla speedtest
          echo >&2 "Checking ping delay to servers. Make sure your are not connected to any proxy or VPN. This takes a while (about 10 min)..."
          fastest_server=`mktemp` #rm -f fastest_server.csv
          latencies_json=latencies.json #`mktemp`

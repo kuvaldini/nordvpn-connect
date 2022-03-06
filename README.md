@@ -2,7 +2,7 @@ NordVPN-connect
 ===============
 I do not trust Official NordVPN, it is not open-source,
 and does more that it is asked for. Giving root access to this
-app is extremely dangerous for Secure Systems. 
+app is extremely dangerous for secure systems. 
 Configuring nordvpnd to work without root is hard, if it is ever possible.
 
 So I desided to spend a couple of hours to write a script to connect to nordvpn.
@@ -15,8 +15,8 @@ Just clone the repo and create a link in your `$PATH`.
 
 ```sh
 umask u=rw
-git clone https://github.com/kuvaldini/nordvpn-connect /path/to/home/user/sofware/nordvpn-connect --single-branch -b master
-chmod -R go= nordvpn-connect  ## Restrict access, only user-ovener may read and run
+git clone https://github.com/kuvaldini/nordvpn-connect /path/to/nordvpn-connect --single-branch -b master
+chmod -R go= nordvpn-connect  ## Restrict access, only user-owner may read and run
 ln -s $PWD/nordvpn-connect/nordvpn-connect.sh /usr/local/bin/nordvpn-connect  ## root required
 ```
 Rootless link `ln -s $PWD/nordvpn-connect/nordvpn-connect.sh ~/.local/bin/`. 

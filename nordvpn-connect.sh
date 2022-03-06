@@ -108,15 +108,17 @@ while [[ $# > 0 ]] ;do
                fatalerr "$errmsg" "No cached server.full.json"
             fi
             ## Merge updated servers list, removed servers stay removed
-            jq 'INDEX(.domain) as $u |
-                reduce ($full[][] | {domain,ip_address,name}) as $i (
-                   []; . + [ $i | .ping_latency=( $u[$i.domain].ping_latency//98767 ) ]
-                  )' \
-                --slurpfile full server.full.json <server.user.json >server.user.temp.json
+            # jq 'INDEX(.domain) as $u |
+            #     reduce ($full[][] | {domain,ip_address,name}) as $i (
+            #        []; . + [ $i | .ping_latency=( $u[$i.domain].ping_latency//98767 ) ]
+            #       )' \
+            #     --slurpfile full server.full.json <server.user.json >server.user.temp.json
+            jq '[ JOIN(INDEX($f[]; .domain); .[]; .domain; add) ]' server.user.json --argfile f server.full.json >server.user.temp.json
             function json_tsv { jq -r 'sort_by(.domain)|.[]|[.domain,.ip_address,.name]|@tsv'; }
+            echo -n >&2 The diff of update:
             diff --old-line-format=`tput setaf 3`'- %L'$'\e[0m' --new-line-format=`tput setaf 2`'+ %L'$'\e[0m' --unchanged-line-format= \
                <(json_tsv<server.user.json) <(json_tsv<server.user.temp.json) \
-               && echo >&2 "Updated with no changes."
+               && echo >&2 $sameline"Updated with no changes."
             mv -f server.user{.temp,}.json
             jq <server.user.json ".[] | [.domain,.ip_address,.ping_latency//$latency_unknown,.name] | @tsv" --raw-output >server.csv
             echomsg "Servers database updated. Use --reindex-fastest to update latencies."

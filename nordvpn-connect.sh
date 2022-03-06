@@ -59,8 +59,11 @@ protocol=tcp
 DryRun=n
 declare -i use_fastest=0
 readonly latency_unknown=98767
-do_actions=
+do_actions= ## ToDo arrange actions in defined order to be executed later (not while parsing), deduplicate
 
+if ! test -s server.user.json ;then
+   cp server.{short,user}.json
+fi
 if ! test -s server.user.json ;then
    cp server.{short,user}.json
 fi
@@ -87,30 +90,35 @@ while [[ $# > 0 ]] ;do
          ;;
       -u|--update|--update-servers)   ## Update servers list
          set +e
-         ( 
+         (
             set -Eeuo pipefail
             cd $DIR
             echo >&2 "Updating servers list..."
-            curl https://api.nordvpn.com/server -fsSL >server.full.json \
+            curl https://api.nordvpn.com/server -fsSL >server.full.temp.json \
                -H"User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:97.0) Gecko/20100101 Firefox/97.0"  \
-               || fatalerr "Failed to get server.full.json from NordVPN API."
-            jq --slurp '[ .[] | map({ (.domain) : {ip_address,name,ping_latency} }) | add ] | .[0] * .[1] | to_entries | 
-                        map(.value.ping_latency//='$latency_unknown') |
-                        sort_by(.value.ping_latency) | map({"domain":.key}+.value)' server.full.json server.user.json >server.user.temp.json
-            # jq '(.[0] | map({ (.domain) : {ip_address,name} }) | add) * .[1] | to_entries | map(.value.ping_latency//='$latency_unknown') |
-            #     sort_by(.value.ping_latency) | map({"domain":.key}+.value)' \
-            #             --slurp server.full.json latencies.json >server.user.temp.json
+               && mv -f server.full.{temp,}.json \
+               || { rm -f server.full.temp.json
+                  echoerr "Failed to get server.full.json from NordVPN API."
+               }
+            ## Merge updated servers list, removed servers stay removed
+            jq 'INDEX(.domain) as $u |
+                reduce ($full[][] | {domain,ip_address,name}) as $i (
+                   []; . + [ $i | .ping_latency=( $u[$i.domain].ping_latency//98767 ) ]
+                  )' \
+                --slurpfile full server.full.json <server.user.json >server.user.temp.json
+            function json_tsv { jq -r 'sort_by(.domain)|.[]|[.domain,.ip_address,.name]|@tsv'; }
+            diff --old-line-format=`tput setaf 3`'- %L'$'\e[0m' --new-line-format=`tput setaf 2`'+ %L'$'\e[0m' --unchanged-line-format= \
+               <(json_tsv<server.user.json) <(json_tsv<server.user.temp.json) \
+               && echo >&2 "Updated with no changes."
             mv -f server.user{.temp,}.json
             jq <server.user.json ".[] | [.domain,.ip_address,.ping_latency//$latency_unknown,.name] | @tsv" --raw-output >server.csv
-            # git diff -U0 --color=always  -- server.csv | 
-            #    grep --color=none -v -e '@@ ' -e 'diff --git' -e 'index ' -e '--- a/' -e '+++ b/'
             echomsg "Servers database updated. Use --reindex-fastest to update latencies."
          )
          exit_if_last_arg $# $?
          set -e
          ;;
       -r|--reindex-fastest)           ## Detect optimal servers (lowest ping), ToDo make longer test with iperf or ookla speedtest.
-         echo >&2 "Checking ping delay to servers. Make sure your are not connected to any proxy or VPN. This takes a while (10 min)..."
+         echo >&2 "Checking ping delay to servers. Make sure your are not connected to any proxy or VPN. This takes a while (about 10 min)..."
          fastest_server=`mktemp` #rm -f fastest_server.csv
          latencies_json=latencies.json #`mktemp`
          echo '{' >$latencies_json
@@ -120,14 +128,13 @@ while [[ $# > 0 ]] ;do
             echo -n "${sameline}Checking server $i/$max $domain $ipaddr..."
             ping -q -c3 -w10 -i.7 -l2 $ipaddr | tail -1 | 
                sed -nE 's,^rtt min.*(.*)/(.*)/(.*)/(.*) ms.*,\2,p;tx;q1;:x' | {
-                  read pingavg || echo "Failed to read ping time for server $domain $ipaddr: ${pingavg:-$oldpingavg}"
+                  read pingavg || echo "Failed to read ping time for server $domain $ipaddr: keep old $oldpingavg"
                   echo -e "$domain\t$ipaddr\t${pingavg:-$oldpingavg}\t$name" >>$fastest_server
                   echo "\"$domain\":{ \"ping_latency\":${pingavg:-$oldpingavg} }," >>$latencies_json
                } & sleep .1
             if test `jobs -rp | wc -l` -ge $pingjobsMAX ;then
-               # echo -e "\npingjobsMAX"
-               wait #-fn #|| true
-               sleep 1
+               wait -fn #|| true
+               sleep .1
             fi
             ((++i))
          done

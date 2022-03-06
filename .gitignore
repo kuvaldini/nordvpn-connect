@@ -1,3 +1,5 @@
 auth.txt
 /nordvpn.ovpn/
 server.user.json
+server.full.json
+*.temp.json

@@ -115,9 +115,9 @@ while [[ $# > 0 ]] ;do
          latencies_json=latencies.json #`mktemp`
          echo '{' >$latencies_json
          readonly pingjobsMAX=24
-         declare -i i=1 max=`wc -l server.csv`
+         declare -i i=1 max=`wc -l <server.csv`
          shuf $DIR/server.csv | while read domain ipaddr oldpingavg name ;do
-            echo -n "${sameline}Checking server $i/ $domain $ipaddr..."
+            echo -n "${sameline}Checking server $i/$max $domain $ipaddr..."
             ping -q -c3 -w10 -i.7 -l2 $ipaddr | tail -1 | 
                sed -nE 's,^rtt min.*(.*)/(.*)/(.*)/(.*) ms.*,\2,p;tx;q1;:x' | {
                   read pingavg || echo "Failed to read ping time for server $domain $ipaddr: ${pingavg:-$oldpingavg}"
@@ -132,7 +132,7 @@ while [[ $# > 0 ]] ;do
             ((++i))
          done
          wait; sleep 1
-         echo
+         echo ' Done.'
          <$fastest_server sort --numeric-sort --key=3 >server.csv
          sed -i '${s/,$/\n\}/}'  $latencies_json  ## remove last comma and add closing bracket
          jq '(map({ (.domain) : {ip_address,name,ping_latency} }) | add) * $lat[0] | to_entries | map(.value.ping_latency//='$latency_unknown') |

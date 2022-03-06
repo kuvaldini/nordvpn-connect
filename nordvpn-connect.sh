@@ -98,8 +98,15 @@ while [[ $# > 0 ]] ;do
                -H"User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:97.0) Gecko/20100101 Firefox/97.0"  \
                && mv -f server.full.{temp,}.json \
                || { rm -f server.full.temp.json
-                  echoerr "Failed to get server.full.json from NordVPN API."
+                  errmsg="Failed to get server.full.json from NordVPN API."
                }
+            if test -s server.full.json ;then
+               if test "${errmsg:-}" != "" ;then
+                  echowarn "$errmsg" "Going ahead with previous server.full.json"
+               fi
+            else
+               fatalerr "$errmsg" "No cached server.full.json"
+            fi
             ## Merge updated servers list, removed servers stay removed
             jq 'INDEX(.domain) as $u |
                 reduce ($full[][] | {domain,ip_address,name}) as $i (

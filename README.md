@@ -109,6 +109,7 @@ Convert to CSV
 
 ## LINKS
 - https://community.openvpn.net/openvpn/wiki/IgnoreRedirectGateway
+- https://confluence.jaytaala.com/display/TKB/My+VPN+Linux+killswitch%3A+securely+disable+all+traffic+except+through+VPN+tunnel
 
 
 ## ToDo 
